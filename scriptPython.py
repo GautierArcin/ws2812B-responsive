@@ -51,10 +51,13 @@ class Masque:
         #Scale
         minFreq = 20
         maxFreq = 20000
-        self.chevauchement = 10
+        self.chevauchement = 4
         self.nbPixel = int((self.strip.numPixels() - 2 ) / 2)
         #self.nbPixel = 10
         self.scale =  np.logspace(np.log10(minFreq), np.log10(maxFreq),self.nbPixel+self.chevauchement+1)
+
+        self.freqPeak = 10
+
 
     def calculateFFT(self):
         data = np.fromstring(self.stream.read(self.chunk),dtype=np.int16)
@@ -66,11 +69,13 @@ class Masque:
         freq = np.fft.fftfreq(self.chunk,1.0/self.rate)
         self.freq = freq[:int(len(freq)/2)] # keep only first half
 
-        self.freqPeak = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1
+        freqPk = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1 
+        if(freqPk>10):
+            self.freqPeak = freqPk
         print("peak frequency: %d Hz"%self.freqPeak)
         #print(np.sum(self.fft)/22311964.0)
 
-    def displayLed(self, dividor = 300000):
+    def displayLed(self, dividor = 500000):
         for i in range(self.nbPixel):
             #print("Normal : ",i, ", Reverse : ", self.nbPixel+(self.nbPixel-i))
             idxBottom = (np.abs(self.freq-self.scale[i])).argmin() 
@@ -110,8 +115,8 @@ class Masque:
         colorIntensity = int(self.freqPeak / 2000 * 255)
         if(colorIntensity > 255): colorIntensity=255
         print(colorIntensity)
-        self.strip.setPixelColor(109, self.wheel(colorIntensity))
-        self.strip.setPixelColor(110, self.wheel(colorIntensity))
+        self.strip.setPixelColor(109, self.eyes(colorIntensity))
+        self.strip.setPixelColor(110, self.eyes(colorIntensity))
 
         self.strip.show()
 
@@ -136,6 +141,10 @@ class Masque:
         else:
             pos -= 170
             return Color(0, pos * 3, 255 - pos * 3)
+
+    def eyes(self,color):
+        """Generate rainbow colors across 0-255 positions."""
+        return Color(255-color , 0, color)
 
 
 if __name__ == "__main__":
