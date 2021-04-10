@@ -9,7 +9,7 @@ from rpi_ws281x import *
 np.set_printoptions(suppress=True) # don't use scientific notation
 
 class Masque:
-    def __init__(self, rate=44100, channel=1, width=2, chunk=2048, index=0, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
+    def __init__(self, rate=44100, channel=1, width=2, chunk=2048*2, index=0, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
 
         # Stream
         self.rate       = rate        
@@ -58,6 +58,11 @@ class Masque:
 
         self.freqPeak = 10
 
+        self.dicLed = {}
+        self.dataToKeep = 3
+        for pixel in range(self.strip.numPixels()+1):
+            self.dicLed[pixel] = [0]
+
 
     def calculateFFT(self):
         data = np.fromstring(self.stream.read(self.chunk),dtype=np.int16)
@@ -72,10 +77,10 @@ class Masque:
         freqPk = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1 
         if(freqPk>10):
             self.freqPeak = freqPk
-        print("peak frequency: %d Hz"%self.freqPeak)
+        #print("peak frequency: %d Hz"%self.freqPeak)
         #print(np.sum(self.fft)/22311964.0)
 
-    def displayLed(self, dividor = 500000):
+    def calculateLed(self, dividor = 2000000):
         for i in range(self.nbPixel):
             #print("Normal : ",i, ", Reverse : ", self.nbPixel+(self.nbPixel-i))
             idxBottom = (np.abs(self.freq-self.scale[i])).argmin() 
@@ -88,8 +93,13 @@ class Masque:
             if(colorIntensity > 255): colorIntensity=255
             #print(colorIntensity)
 
-            self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
-            self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
+            self.dicLed[i] += [colorIntensity]
+            #self.dicLed[self.nbPixel+(self.nbPixel-i)] += [colorIntensity]
+
+            if(len(self.dicLed[i]) > self.dataToKeep  ): self.dicLed[i].pop(0)
+            #if(len(self.dicLed[self.nbPixel+(self.nbPixel-i)]) > self.dataToKeep  ): self.dicLed[self.nbPixel+(self.nbPixel-i)].pop(0)
+            #self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
+            #self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
 
         #for i in range(self.strip.numPixels()):
             # print(i," : ",scale[i], " - ",scale[i+1])
@@ -115,11 +125,22 @@ class Masque:
         colorIntensity = int(self.freqPeak / 2000 * 255)
         if(colorIntensity > 255): colorIntensity=255
         print(colorIntensity)
-        self.strip.setPixelColor(109, self.eyes(colorIntensity))
-        self.strip.setPixelColor(110, self.eyes(colorIntensity))
 
+        self.dicLed[109] += [colorIntensity]
+        self.dicLed[110] += [colorIntensity]
+        if(len(self.dicLed[109] ) > self.dataToKeep  ): self.dicLed[109].pop(0)
+        if(len(self.dicLed[110] ) > self.dataToKeep  ): self.dicLed[110].pop(0)
+
+    def displayLed(self):
+        for i in range(self.nbPixel):
+            value = int(sum(self.dicLed[i])/self.dataToKeep)
+            self.strip.setPixelColor(i, Color(value,0,0))
+            self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color(0,0,value))
+        
+        value = int(sum(self.dicLed[109])/self.dataToKeep)
+        self.strip.setPixelColor(109, self.eyes(value))
+        self.strip.setPixelColor(110, self.eyes(value))
         self.strip.show()
-
     
     def terminate(self):
         for i in range(self.strip.numPixels()):
@@ -152,6 +173,7 @@ if __name__ == "__main__":
     try: 
         while True:
             instance.calculateFFT()
+            instance.calculateLed()
             instance.displayLed()
             #print("new line")
     except KeyboardInterrupt:
