@@ -56,7 +56,13 @@ class Masque:
         #self.nbPixel = 10
         self.scale =  np.logspace(np.log10(minFreq), np.log10(maxFreq),self.nbPixel+self.chevauchement+1)
 
+        # FreqPeak
         self.freqPeak = 10
+
+        # Volume
+        self.rmsList = [0] * 20
+        self.rmsThreeshold = 300
+        self.rmsMedian = 0
 
 
     def calculateFFT(self):
@@ -69,35 +75,47 @@ class Masque:
         freq = np.fft.fftfreq(self.chunk,1.0/self.rate)
         self.freq = freq[:int(len(freq)/2)] # keep only first half
 
+        self.rmsList.append(np.sqrt(np.mean(np.square(data))))
+        self.rmsList.pop(0)
+        self.rmsMedian= np.median(self.rmsList)
+        #print("mean rms self %f" % (self.rmsMedian))
+
         freqPk = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1 
         if(freqPk>10):
             self.freqPeak = freqPk
+            print("peak frequency: %d Hz"%freqPk)
         #print("peak frequency: %d Hz"%self.freqPeak)
 
-    def displayLed(self, dividor = 5000000, debug=True):
+    def displayLed(self, dividor = 500000, debug=False):
         for i in range(self.nbPixel):
             idxBottom = (np.abs(self.freq-self.scale[i])).argmin() 
-            #idxUp= (np.abs(self.freq-self.scale[i+self.chevauchement+1])).argmin() 
             idxUp= (np.abs(self.freq-self.scale[i+1])).argmin() +self.chevauchement
 
-
             mean = np.sum(self.fft[idxBottom:idxUp]) / (idxUp - idxBottom) / dividor
-            colorIntensity = int(mean*255)
-            if(colorIntensity > 255): colorIntensity=255
+
+            if(self.rmsMedian > self.rmsThreeshold):
+                colorIntensity = int(mean*255)
+                if(colorIntensity > 255): colorIntensity=255
+                colorIntensityPeak = int(self.freqPeak / 1000 * 255*3)
+                if(colorIntensityPeak > 255): colorIntensityPeak=255
+                self.strip.setPixelColor(109, self.wheel2(colorIntensityPeak))
+                self.strip.setPixelColor(110, self.wheel2(colorIntensityPeak))
+            else:
+                colorIntensity = 0
+                colorIntensityPeak = 0
+                self.strip.setPixelColor(109, Color(0,0,0))
+                self.strip.setPixelColor(110, Color(0,0,0))
+
             self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
             self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
 
-            colorIntensity = int(self.freqPeak / 2000 * 255)
-            if(colorIntensity > 255): colorIntensity=255
             if(debug):
                 print("\n\n\n")
                 print("setting %d and %d" % (i,  self.nbPixel+(self.nbPixel-i)))
                 print("self scale %f", self.scale)
                 print("indx up %f, indx down %f" % (idxUp, idxBottom))
                 print("i :", i, ", mean: ", mean, ", color intensity : ", colorIntensity)
-                print("color intensity : ", colorIntensity)
-            self.strip.setPixelColor(109, self.eyes(colorIntensity))
-            self.strip.setPixelColor(110, self.eyes(colorIntensity))
+                print("color intensity Peak: ", colorIntensityPeak)
 
         self.strip.show()
 
@@ -122,6 +140,17 @@ class Masque:
         else:
             pos -= 170
             return Color(0, pos * 3, 255 - pos * 3)
+            
+    def wheel2(self,pos):
+        """Generate rainbow colors across 0-255 positions."""
+        if pos < 255:
+            return Color(pos, 255 - pos , 0)
+        elif pos < 510:
+            pos -= 255
+            return Color(255 - pos , 0, pos )
+        else:
+            pos -= 510
+            return Color(0, pos, 255 - pos)
 
     def eyes(self,color):
         """Generate rainbow colors across 0-255 positions."""
