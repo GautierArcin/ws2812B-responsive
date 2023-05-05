@@ -58,6 +58,7 @@ class Masque:
 
         # FreqPeak
         self.freqPeak = 10
+        self.freqPeakList = [1]*5
 
         # Volume
         self.rmsList = [0] * 20
@@ -78,13 +79,15 @@ class Masque:
         self.rmsList.append(np.sqrt(np.mean(np.square(data))))
         self.rmsList.pop(0)
         self.rmsMedian= np.median(self.rmsList)
-        #print("mean rms self %f" % (self.rmsMedian))
+        print("mean rms self %f" % (self.rmsMedian))
 
-        freqPk = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1 
-        if(freqPk>10):
-            self.freqPeak = freqPk
-            print("peak frequency: %d Hz"%freqPk)
-        #print("peak frequency: %d Hz"%self.freqPeak)
+        freqPk = self.freq[np.where(self.fft[2:]==np.max(self.fft[2:]))[0][0]]+1 
+        if(freqPk<1):
+            freqPk=1
+        self.freqPeakList.append(freqPk)
+        self.freqPeakList.pop(0)
+        self.freqPeakValue = np.mean(self.freqPeakList)
+        print("peak self %f" % (self.freqPeakValue))
 
     def displayLed(self, dividor = 500000, debug=False):
         for i in range(self.nbPixel):
@@ -96,8 +99,9 @@ class Masque:
             if(self.rmsMedian > self.rmsThreeshold):
                 colorIntensity = int(mean*255)
                 if(colorIntensity > 255): colorIntensity=255
-                colorIntensityPeak = int(self.freqPeak / 1000 * 255*3)
-                if(colorIntensityPeak > 255): colorIntensityPeak=255
+                colorIntensityPeak = int((np.log10(self.freqPeakValue))  * 255 )
+                print("self color intensity : ", colorIntensityPeak, ", frequ : ", np.log10(self.freqPeakValue ))
+                if(colorIntensityPeak > 255*3): colorIntensityPeak=255*3
                 self.strip.setPixelColor(109, self.wheel2(colorIntensityPeak))
                 self.strip.setPixelColor(110, self.wheel2(colorIntensityPeak))
             else:
