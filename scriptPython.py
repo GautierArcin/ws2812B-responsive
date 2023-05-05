@@ -9,7 +9,7 @@ from rpi_ws281x import *
 np.set_printoptions(suppress=True) # don't use scientific notation
 
 class Masque:
-    def __init__(self, rate=44100, channel=1, width=2, chunk=2048, index=0, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
+    def __init__(self, rate=44100, channel=1, width=2, chunk=2048, index=2, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
 
         # Stream
         self.rate       = rate        
@@ -51,8 +51,8 @@ class Masque:
         #Scale
         minFreq = 20
         maxFreq = 20000
-        self.chevauchement = 4
-        self.nbPixel = int((self.strip.numPixels() - 2 ) / 2)
+        self.chevauchement = 2
+        self.nbPixel = int((self.strip.numPixels() - 2  ) / 2)
         #self.nbPixel = 10
         self.scale =  np.logspace(np.log10(minFreq), np.log10(maxFreq),self.nbPixel+self.chevauchement+1)
 
@@ -60,7 +60,7 @@ class Masque:
 
 
     def calculateFFT(self):
-        data = np.fromstring(self.stream.read(self.chunk),dtype=np.int16)
+        data = np.fromstring(self.stream.read(self.chunk, exception_on_overflow = False),dtype=np.int16)
         data = data * np.hanning(len(data)) # smooth the FFT by windowing data
 
         fft = abs(np.fft.fft(data).real)
@@ -72,51 +72,32 @@ class Masque:
         freqPk = self.freq[np.where(self.fft==np.max(self.fft))[0][0]]+1 
         if(freqPk>10):
             self.freqPeak = freqPk
-        print("peak frequency: %d Hz"%self.freqPeak)
-        #print(np.sum(self.fft)/22311964.0)
+        #print("peak frequency: %d Hz"%self.freqPeak)
 
-    def displayLed(self, dividor = 500000):
+    def displayLed(self, dividor = 5000000, debug=True):
         for i in range(self.nbPixel):
-            #print("Normal : ",i, ", Reverse : ", self.nbPixel+(self.nbPixel-i))
             idxBottom = (np.abs(self.freq-self.scale[i])).argmin() 
-            idxUp= (np.abs(self.freq-self.scale[i+self.chevauchement+1])).argmin() 
+            #idxUp= (np.abs(self.freq-self.scale[i+self.chevauchement+1])).argmin() 
+            idxUp= (np.abs(self.freq-self.scale[i+1])).argmin() +self.chevauchement
+
 
             mean = np.sum(self.fft[idxBottom:idxUp]) / (idxUp - idxBottom) / dividor
-            #print(mean)
-            if(np.isnan(mean)): mean=0.001
             colorIntensity = int(mean*255)
             if(colorIntensity > 255): colorIntensity=255
-            #print(colorIntensity)
-
             self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
             self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
 
-        #for i in range(self.strip.numPixels()):
-            # print(i," : ",scale[i], " - ",scale[i+1])
-            # idxBottom = (np.abs(freq-scale[i])).argmin() 
-            # idxUp= (np.abs(freq-scale[i+chevauchement+1])).argmin() 
-            # print(idxBottom, " -> ", idxUp)
-            # mean = np.sum(fft[idxBottom:idxUp]) / (idxUp - idxBottom) / 20000
-            # print(mean)
-            # print(np.where(freq==bottomFreq)[0])
-            # upFreq = (find_nearest(freq, scale[i+1]))
-            # mean = np.mean(fft[):int(scale[i+1])])
-            # if(np.isnan(mean)): mean=0.001
-            # colorIntensity = mean/5.0*255
-            # if(colorIntensity > 250): colorIntensity=255
-            # color1 = gamma8[int(colorIntensity * (i/strip.numPixels()))]
-            # color2 = gamma8[int(colorIntensity * ((strip.numPixels() - i) /strip.numPixels()))]
-            # mean = mean / 1000.0
-            # strip.setPixelColor(i,(Color(color1 ,0, color2)))
-            #self.strip.setPixelColor(i, Color( int(255 * i/ self.strip.numPixels()) ,0,0))
-            
-            #print("i : ",i," color calculated : ", int(255 * i/ self.strip.numPixels()) )
-
-        colorIntensity = int(self.freqPeak / 2000 * 255)
-        if(colorIntensity > 255): colorIntensity=255
-        print(colorIntensity)
-        self.strip.setPixelColor(109, self.eyes(colorIntensity))
-        self.strip.setPixelColor(110, self.eyes(colorIntensity))
+            colorIntensity = int(self.freqPeak / 2000 * 255)
+            if(colorIntensity > 255): colorIntensity=255
+            if(debug):
+                print("\n\n\n")
+                print("setting %d and %d" % (i,  self.nbPixel+(self.nbPixel-i)))
+                print("self scale %f", self.scale)
+                print("indx up %f, indx down %f" % (idxUp, idxBottom))
+                print("i :", i, ", mean: ", mean, ", color intensity : ", colorIntensity)
+                print("color intensity : ", colorIntensity)
+            self.strip.setPixelColor(109, self.eyes(colorIntensity))
+            self.strip.setPixelColor(110, self.eyes(colorIntensity))
 
         self.strip.show()
 
