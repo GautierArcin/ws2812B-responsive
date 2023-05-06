@@ -58,11 +58,11 @@ class Masque:
 
         # FreqPeak
         self.freqPeak = 10
-        self.freqPeakList = [1]*10
+        self.freqPeakList = [1]*8
 
         # Volume
-        self.rmsList = [0] * 120
-        self.rmsListEyes = [0] * 20
+        self.rmsList = [0] * 150
+        self.rmsListEyes = [0] * 10
         self.rmsThreeshold = 300
         self.rmsMedian = 0
         self.rmsMedianEyes = 0
@@ -92,6 +92,7 @@ class Masque:
             self.freqPeakList.append(freqPk)
             self.freqPeakList.pop(0)   
             self.freqPeakValue = np.log10(np.mean(self.freqPeakList))
+            print("self freak peak value ",  self.freqPeakValue)
 
     def displayLed(self, dividor = 500000, debug=False):
         for i in range(self.nbPixel):
@@ -103,15 +104,11 @@ class Masque:
             if(self.rmsMedian > self.rmsThreeshold):
                 colorIntensity = int(mean*255)
                 if(colorIntensity > 255): colorIntensity=255
-                #print("self color intensity : ", colorIntensityPeak, ", frequ : ", np.log10(self.freqPeakValue ))
-                self.strip.setPixelColor(109, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
-                self.strip.setPixelColor(110, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
             else:
                 colorIntensity = 0
-                colorIntensityPeak = 0
                 self.strip.setPixelColor(109, Color(0,0,0))
                 self.strip.setPixelColor(110, Color(0,0,0))
-
+                
             self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
             self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
 
@@ -121,7 +118,13 @@ class Masque:
                 print("self scale %f", self.scale)
                 print("indx up %f, indx down %f" % (idxUp, idxBottom))
                 print("i :", i, ", mean: ", mean, ", color intensity : ", colorIntensity)
-                print("color intensity Peak: ", colorIntensityPeak)
+                
+        if(self.rmsMedian > self.rmsThreeshold):
+            self.strip.setPixelColor(109, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
+            self.strip.setPixelColor(110, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
+        else:
+            self.strip.setPixelColor(109, Color(0,0,0))
+            self.strip.setPixelColor(110, Color(0,0,0))
 
         self.strip.show()
 
@@ -195,11 +198,11 @@ class Masque:
         """Define intensity through fft variation"""
         """Varies color through pitch"""
 
-        print("pitch %f, energy %f" % (pitch, energy))
+        #print("pitch %f, energy %f" % (pitch, energy))
 
         # Pitch varies between 1 and 3
         # We wants its to varies between 0 and 255
-        pitch =- 1 
+        pitch -= 1 
         color = pitch / 2.0 * 255
         if(color < 0): color = 0
         if(color > 255): color = 255
@@ -207,13 +210,13 @@ class Masque:
         # Energy varies between -1000 and 1000
         # We wants it to varies between 0 and 1
         energy += 1000
+        energy -= 500
         variation = energy / 2000.0 
         if(variation > 1): variation = 1
-        if(variation < 0): variation = 0
+        if(variation < 0.1): variation = 0.1
 
-        print("color %f, variation %f" % (color, variation))
-
-        print("color eyes : ", Color(int((255-color)*variation), int(color*variation), 0))
+        #print("color %f, variation %f" % (color, variation))
+        #print("color eyes : ", Color(int((255-color)*variation), int(color*variation), 0))
         
         return Color(int((255-color)*variation), int(color*variation), 0)
 
