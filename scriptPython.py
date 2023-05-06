@@ -47,22 +47,26 @@ class Masque:
         
         #Gamma correction approximation
         self.gamma8 = [0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,    1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,    2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,    5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,   10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,   17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,   25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,   37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,   51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,   69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,   90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,  115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,  144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,  177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,  215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 ]
-    
+
         #Scale
         minFreq = 20
         maxFreq = 20000
-        self.chevauchement = 2
+        self.chevauchement = 5
         self.nbPixel = int((self.strip.numPixels() - 2  ) / 2)
-        #self.nbPixel = 10
         self.scale =  np.logspace(np.log10(minFreq), np.log10(maxFreq),self.nbPixel+self.chevauchement+1)
+
+        #Color array
+        nbMeasure = 20 # Change this array to average values of each led
+        self.mean = [ [0] * nbMeasure ] * self.nbPixel
+        self.hysteresis = [ False ] * self.nbPixel # hysterresis to lower the blink effect
 
         # FreqPeak
         self.freqPeak = 10
-        self.freqPeakList = [1]*80
+        self.freqPeakList = [1]*100
 
         # Volume
         self.rmsList = [0] * 250
-        self.rmsListEyes = [0] * 12
+        self.rmsListEyes = [0] * 16
         self.rmsThreeshold = 300
         self.rmsMedian = 0
         self.rmsMedianEyes = 0
@@ -95,22 +99,26 @@ class Masque:
             self.freqPeakValue = np.log10(np.mean(self.freqPeakList))
 
     def displayLed(self, dividor = 500000, debug=False):
-        for i in range(self.nbPixel):
+        for i in range(int(self.nbPixel)):
             idxBottom = (np.abs(self.freq-self.scale[i])).argmin() 
-            idxUp= (np.abs(self.freq-self.scale[i+1])).argmin() +self.chevauchement
+            idxUp= (np.abs(self.freq-self.scale[i+1+self.chevauchement])).argmin()
+            if(idxUp == idxBottom): idxUp = idxBottom + 1
 
             mean = np.sum(self.fft[idxBottom:idxUp]) / (idxUp - idxBottom) / dividor
+            self.mean[i].append(mean)
+            self.mean[i].pop(0)
 
             if(self.rmsMedian > self.rmsThreeshold):
-                colorIntensity = int(mean*255)
+                colorIntensity = int(np.mean(self.mean[i])*255)
                 if(colorIntensity > 255): colorIntensity=255
             else:
                 colorIntensity = 0
                 self.strip.setPixelColor(109, Color(0,0,0))
                 self.strip.setPixelColor(110, Color(0,0,0))
                 
+
             self.strip.setPixelColor(i, Color( colorIntensity ,0,0))
-            self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0,colorIntensity ))
+            self.strip.setPixelColor( self.nbPixel+(self.nbPixel-i), Color( 0,0, colorIntensity ))
 
             if(debug):
                 print("\n\n\n")
