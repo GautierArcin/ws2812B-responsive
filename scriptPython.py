@@ -9,7 +9,7 @@ from rpi_ws281x import *
 np.set_printoptions(suppress=True) # don't use scientific notation
 
 class Masque:
-    def __init__(self, rate=44100, channel=1, width=2, chunk=2048, index=2, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
+    def __init__(self, rate=44100, channel=1, width=2, chunk=256*2*2, index=2, ledCount = 111, ledPin = 10, ledFreqHZ = 800000, ledDMA = 10, ledBright = 255, ledInvert=False, ledChannel=0):
 
         # Stream
         self.rate       = rate        
@@ -58,11 +58,11 @@ class Masque:
 
         # FreqPeak
         self.freqPeak = 10
-        self.freqPeakList = [1]*8
+        self.freqPeakList = [1]*80
 
         # Volume
-        self.rmsList = [0] * 160
-        self.rmsListEyes = [0] * 10
+        self.rmsList = [0] * 250
+        self.rmsListEyes = [0] * 12
         self.rmsThreeshold = 300
         self.rmsMedian = 0
         self.rmsMedianEyes = 0
@@ -86,7 +86,9 @@ class Masque:
         self.rmsMedianEyes= np.mean(self.rmsListEyes) - self.rmsMedian # Substracting the median of the 120 last to 20 last, in order to see variation
         #print("rms eyes : ", self.rmsMedianEyes)
 
-        freqPk = self.freq[np.where(self.fft[2:]==np.max(self.fft[2:]))[0][0]]+1 
+        freqPk = self.freq[np.where(self.fft[10:]==np.max(self.fft[10:]))[0][0]]+1 # We get the 20 first sample out, in order to not have the basses parasite the fondamental frequency 
+        #print("where is max : ", np.where(self.fft[20:]==np.max(self.fft[20:]))[0][0])
+        #print("where is max 2 : ", np.where(self.fft==np.max(self.fft))[0][0])
         if(freqPk>1):
             self.freqPeakList.append(freqPk)
             self.freqPeakList.pop(0)   
@@ -140,11 +142,11 @@ class Masque:
         """Define intensity through fft variation"""
         """Varies color through pitch"""
 
-        #print("pitch %f, energy %f" % (pitch, energy))
+        print("pitch %f, energy %f" % (pitch, energy))
 
-        # Pitch varies between 1 and 3
+        # Pitch varies between 2 and 4
         # We wants its to varies between 0 and 255
-        pitch -= 1 
+        pitch -= 1.5
         color = pitch / 2.0 * 255
         if(color < 0): color = 0
         if(color > 255): color = 255
@@ -155,7 +157,7 @@ class Masque:
         energy -= 500
         variation = energy / 2000.0 
         if(variation > 1): variation = 1
-        if(variation < 0.1): variation = 0.1
+        if(variation < 0.05): variation = 0.05
 
         #print("color %f, variation %f" % (color, variation))
         #print("color eyes : ", Color(int((255-color)*variation), int(color*variation), 0))
@@ -166,8 +168,11 @@ if __name__ == "__main__":
     instance = Masque()
     try: 
         while True:
+            start = time.time()
             instance.calculateFFT()
             instance.displayLed()
+            end = time.time()
+            print("time elpased : ", end - start)
             #print("new line")
     except KeyboardInterrupt:
         instance.terminate()
