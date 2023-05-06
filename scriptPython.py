@@ -61,7 +61,7 @@ class Masque:
         self.freqPeakList = [1]*8
 
         # Volume
-        self.rmsList = [0] * 150
+        self.rmsList = [0] * 160
         self.rmsListEyes = [0] * 10
         self.rmsThreeshold = 300
         self.rmsMedian = 0
@@ -84,15 +84,13 @@ class Masque:
         self.rmsListEyes.pop(0)
         self.rmsMedian= np.median(self.rmsList)
         self.rmsMedianEyes= np.mean(self.rmsListEyes) - self.rmsMedian # Substracting the median of the 120 last to 20 last, in order to see variation
-        print("rms eyes : ", self.rmsMedianEyes)
-        
+        #print("rms eyes : ", self.rmsMedianEyes)
 
         freqPk = self.freq[np.where(self.fft[2:]==np.max(self.fft[2:]))[0][0]]+1 
         if(freqPk>1):
             self.freqPeakList.append(freqPk)
             self.freqPeakList.pop(0)   
             self.freqPeakValue = np.log10(np.mean(self.freqPeakList))
-            print("self freak peak value ",  self.freqPeakValue)
 
     def displayLed(self, dividor = 500000, debug=False):
         for i in range(self.nbPixel):
@@ -120,8 +118,8 @@ class Masque:
                 print("i :", i, ", mean: ", mean, ", color intensity : ", colorIntensity)
                 
         if(self.rmsMedian > self.rmsThreeshold):
-            self.strip.setPixelColor(109, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
-            self.strip.setPixelColor(110, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
+            self.strip.setPixelColor(109, self.eyes(self.freqPeakValue,self.rmsMedianEyes))
+            self.strip.setPixelColor(110, self.eyes(self.freqPeakValue,self.rmsMedianEyes))
         else:
             self.strip.setPixelColor(109, Color(0,0,0))
             self.strip.setPixelColor(110, Color(0,0,0))
@@ -136,64 +134,8 @@ class Masque:
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
-
-    # not Mine, from strandtest
-    # 0 +> 255 To get a position
-    def wheel(self,pos):
-        """Generate rainbow colors across 0-255 positions."""
-        if pos < 85:
-            return Color(pos * 3, 255 - pos * 3, 0)
-        elif pos < 170:
-            pos -= 85
-            return Color(255 - pos * 3, 0, pos * 3)
-        else:
-            pos -= 170
-            return Color(0, pos * 3, 255 - pos * 3)
-            
-    def wheel2(self,pos):
-        """Generate rainbow colors across 0-255 positions."""
-        if pos < 255:
-            return Color(pos, 255 - pos , 0)
-        elif pos < 510:
-            pos -= 255
-            return Color(255 - pos , 0, pos )
-        else:
-            pos -= 510
-            return Color(0, pos, 255 - pos)
-
-    def eyes(self,color):
-        """Generate rainbow colors across 0-255 positions."""
-        return Color(255-color , 0, color)
     
-    def eyes2(self,color):
-        """Generate rainbow colors for eyes, with value between 1 and 3"""
-        #print("color : ", color)
-        color -= 1 
-        color -= 0.5 # Correction because we wants more green
-        if(color < 0): color = 0
-        if(color > 2): color = 2
-        color = int(color*255)
-        if(color > 255):
-            color-= 255
-            return Color(0, 255-color, color)
-        else:
-            return Color(255-color, color, 0)
-
-    def eyes3(self,):
-        """Generate rainbow colors for eyes, with value between 1000 and -1000"""
-        #print("color : ", color)
-        color -= 1000
-        if(color < 0): color = 0
-        if(color > 2000): color = 2000
-        color = int(color*255*2/2000)
-        if(color > 255):
-            color-= 255
-            return Color(0, 255-color, color)
-        else:
-            return Color(255-color, color, 0)
-
-
-    def eyes4(self, pitch, energy):
+    def eyes(self, pitch, energy):
         """Generate rainbow colors for eyes"""
         """Define intensity through fft variation"""
         """Varies color through pitch"""
