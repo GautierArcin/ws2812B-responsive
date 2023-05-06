@@ -62,7 +62,7 @@ class Masque:
 
         # Volume
         self.rmsList = [0] * 120
-        self.rmsListEyes = [0] * 10
+        self.rmsListEyes = [0] * 20
         self.rmsThreeshold = 300
         self.rmsMedian = 0
         self.rmsMedianEyes = 0
@@ -104,8 +104,8 @@ class Masque:
                 colorIntensity = int(mean*255)
                 if(colorIntensity > 255): colorIntensity=255
                 #print("self color intensity : ", colorIntensityPeak, ", frequ : ", np.log10(self.freqPeakValue ))
-                self.strip.setPixelColor(109, self.eyes4(self.rmsMedianEyes))
-                self.strip.setPixelColor(110, self.eyes4(self.rmsMedianEyes))
+                self.strip.setPixelColor(109, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
+                self.strip.setPixelColor(110, self.eyes4(self.freqPeakValue,self.rmsMedianEyes))
             else:
                 colorIntensity = 0
                 colorIntensityPeak = 0
@@ -176,10 +176,10 @@ class Masque:
         else:
             return Color(255-color, color, 0)
 
-    def eyes3(self,color):
+    def eyes3(self,):
         """Generate rainbow colors for eyes, with value between 1000 and -1000"""
         #print("color : ", color)
-        color += 1000
+        color -= 1000
         if(color < 0): color = 0
         if(color > 2000): color = 2000
         color = int(color*255*2/2000)
@@ -190,14 +190,32 @@ class Masque:
             return Color(255-color, color, 0)
 
 
-    def eyes4(self,color):
-        """Generate rainbow colors for eyes, with value between 1000 and -1000"""
-        print("color : ", color)
-        color += 1000
+    def eyes4(self, pitch, energy):
+        """Generate rainbow colors for eyes"""
+        """Define intensity through fft variation"""
+        """Varies color through pitch"""
+
+        print("pitch %f, energy %f" % (pitch, energy))
+
+        # Pitch varies between 1 and 3
+        # We wants its to varies between 0 and 255
+        pitch =- 1 
+        color = pitch / 2.0 * 255
         if(color < 0): color = 0
-        if(color > 2000): color = 2000
-        color = int(color*255/2000)
-        return Color(255-color, color, 0)
+        if(color > 255): color = 255
+
+        # Energy varies between -1000 and 1000
+        # We wants it to varies between 0 and 1
+        energy += 1000
+        variation = energy / 2000.0 
+        if(variation > 1): variation = 1
+        if(variation < 0): variation = 0
+
+        print("color %f, variation %f" % (color, variation))
+
+        print("color eyes : ", Color(int((255-color)*variation), int(color*variation), 0))
+        
+        return Color(int((255-color)*variation), int(color*variation), 0)
 
 if __name__ == "__main__":
     instance = Masque()
