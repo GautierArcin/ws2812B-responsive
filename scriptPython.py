@@ -63,7 +63,7 @@ class Masque:
         # Volume
         self.rmsList = [0] * 250
         self.rmsListEyes = [0] * 12
-        self.rmsThreeshold = 300
+        self.rmsThreeshold = 250
         self.rmsMedian = 0
         self.rmsMedianEyes = 0
 
