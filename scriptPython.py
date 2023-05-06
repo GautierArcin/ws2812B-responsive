@@ -58,13 +58,14 @@ class Masque:
 
         # FreqPeak
         self.freqPeak = 10
-        self.freqPeakList = [1]*5
+        self.freqPeakList = [1]*10
 
         # Volume
-        self.rmsList = [0] * 20
+        self.rmsList = [0] * 120
+        self.rmsListEyes = [0] * 10
         self.rmsThreeshold = 300
         self.rmsMedian = 0
-
+        self.rmsMedianEyes = 0
 
     def calculateFFT(self):
         data = np.fromstring(self.stream.read(self.chunk, exception_on_overflow = False),dtype=np.int16)
@@ -76,18 +77,21 @@ class Masque:
         freq = np.fft.fftfreq(self.chunk,1.0/self.rate)
         self.freq = freq[:int(len(freq)/2)] # keep only first half
 
-        self.rmsList.append(np.sqrt(np.mean(np.square(data))))
+        rms = np.sqrt(np.mean(np.square(data)))
+        self.rmsList.append(rms)
         self.rmsList.pop(0)
+        self.rmsListEyes.append(rms)
+        self.rmsListEyes.pop(0)
         self.rmsMedian= np.median(self.rmsList)
-        print("mean rms self %f" % (self.rmsMedian))
+        self.rmsMedianEyes= np.mean(self.rmsListEyes) - self.rmsMedian # Substracting the median of the 120 last to 20 last, in order to see variation
+        print("rms eyes : ", self.rmsMedianEyes)
+        
 
         freqPk = self.freq[np.where(self.fft[2:]==np.max(self.fft[2:]))[0][0]]+1 
-        if(freqPk<1):
-            freqPk=1
-        self.freqPeakList.append(freqPk)
-        self.freqPeakList.pop(0)
-        self.freqPeakValue = np.mean(self.freqPeakList)
-        print("peak self %f" % (self.freqPeakValue))
+        if(freqPk>1):
+            self.freqPeakList.append(freqPk)
+            self.freqPeakList.pop(0)   
+            self.freqPeakValue = np.log10(np.mean(self.freqPeakList))
 
     def displayLed(self, dividor = 500000, debug=False):
         for i in range(self.nbPixel):
@@ -99,11 +103,9 @@ class Masque:
             if(self.rmsMedian > self.rmsThreeshold):
                 colorIntensity = int(mean*255)
                 if(colorIntensity > 255): colorIntensity=255
-                colorIntensityPeak = int((np.log10(self.freqPeakValue))  * 255 )
-                print("self color intensity : ", colorIntensityPeak, ", frequ : ", np.log10(self.freqPeakValue ))
-                if(colorIntensityPeak > 255*3): colorIntensityPeak=255*3
-                self.strip.setPixelColor(109, self.wheel2(colorIntensityPeak))
-                self.strip.setPixelColor(110, self.wheel2(colorIntensityPeak))
+                #print("self color intensity : ", colorIntensityPeak, ", frequ : ", np.log10(self.freqPeakValue ))
+                self.strip.setPixelColor(109, self.eyes4(self.rmsMedianEyes))
+                self.strip.setPixelColor(110, self.eyes4(self.rmsMedianEyes))
             else:
                 colorIntensity = 0
                 colorIntensityPeak = 0
@@ -159,7 +161,43 @@ class Masque:
     def eyes(self,color):
         """Generate rainbow colors across 0-255 positions."""
         return Color(255-color , 0, color)
+    
+    def eyes2(self,color):
+        """Generate rainbow colors for eyes, with value between 1 and 3"""
+        #print("color : ", color)
+        color -= 1 
+        color -= 0.5 # Correction because we wants more green
+        if(color < 0): color = 0
+        if(color > 2): color = 2
+        color = int(color*255)
+        if(color > 255):
+            color-= 255
+            return Color(0, 255-color, color)
+        else:
+            return Color(255-color, color, 0)
 
+    def eyes3(self,color):
+        """Generate rainbow colors for eyes, with value between 1000 and -1000"""
+        #print("color : ", color)
+        color += 1000
+        if(color < 0): color = 0
+        if(color > 2000): color = 2000
+        color = int(color*255*2/2000)
+        if(color > 255):
+            color-= 255
+            return Color(0, 255-color, color)
+        else:
+            return Color(255-color, color, 0)
+
+
+    def eyes4(self,color):
+        """Generate rainbow colors for eyes, with value between 1000 and -1000"""
+        print("color : ", color)
+        color += 1000
+        if(color < 0): color = 0
+        if(color > 2000): color = 2000
+        color = int(color*255/2000)
+        return Color(255-color, color, 0)
 
 if __name__ == "__main__":
     instance = Masque()
